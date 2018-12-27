@@ -2,7 +2,7 @@
 #include <sys/types.h>
 #include "Keypair.h"   /* keypair ASN.1 type  */
 
-int xtt_save_to_file(unsigned char *buffer, size_t bytes_to_write, const char *filename)
+int save_to_file(unsigned char *buffer, size_t bytes_to_write, const char *filename)
 {
     FILE *file_ptr = fopen(filename, "wb");
     int ret = 0;
@@ -29,7 +29,7 @@ cleanup:
     return ret;
 }
 
-int xtt_read_from_file(const char *filename, unsigned char *buffer, size_t bytes_to_read)
+int read_from_file(const char *filename, unsigned char *buffer, size_t bytes_to_read)
 {
     FILE *file_ptr = fopen(filename, "rb");
     int ret = 0;
@@ -63,10 +63,10 @@ cleanup:
 
 static int
 write_out(const void *buffer, size_t size, void *app_key) {
-    FILE *out_fp = app_key;
+    unsigned char *out_fp = app_key;
     size_t wrote;
 
-    wrote = fwrite(buffer, 1, size, out_fp);
+    wrote = memcpy(out_fp, buffer, size);
 
     if (wrote == size)
         return 0;
@@ -74,22 +74,16 @@ write_out(const void *buffer, size_t size, void *app_key) {
         return -1;
 }
 
-int main(int ac, char **av) {
+int asn1_keypair_create(unsigned char* pubkey, unsigned char* privkey, unsigned char* keypair_out) {
     struct Keypair *keypair;
     asn_enc_rval_t ec;
 
     /* Allocate the Keypair */
     keypair = calloc(1, sizeof(struct Keypair)); /* not malloc! */
     if(NULL == keypair) {
-      exit(71); /* better, EX_OSERR */
+      goto error;
     }
 
-    /* Initialize the keypair members */
-    uint8_t pubkey[65] = {0};
-    uint8_t privkey[32] = {0};
-
-    xtt_read_from_file(av[1], (unsigned char*)pubkey, 65);
-    xtt_read_from_file(av[2], (unsigned char*)privkey, 32);
 
     OCTET_STRING_t privatekey = {.size = 32, .buf = privkey};
     keypair->privkeyversion = 1;
@@ -97,41 +91,35 @@ int main(int ac, char **av) {
 
     const unsigned int oid[] = { 1, 2, 840, 10045, 3, 1, 7};
     // set oid
-    int ret = OBJECT_IDENTIFIER_set_arcs(&(keypair->publickeyoid), &oid, 7);
+    int ret = OBJECT_IDENTIFIER_set_arcs(&(keypair->publickeyoid), oid, 7);
     assert(0 == ret);
 
     BIT_STRING_t publickey = {.size = 65, .buf = pubkey};
     keypair->publickey=publickey;
-
-    /* BER encode the data if filename is given */
-    if(ac < 4) {
-      fprintf(stderr, "Specify filename for BER output\n");
-    } else {
-      const char *filename = av[3];
-      FILE *fp = fopen(filename, "wb");   /* for BER output */
-
-      if(!fp) {
-        perror(filename);
-        exit(71); /* better, EX_OSERR */
-      }
-
-      /* Encode the keypair type as BER (DER) */
-      ec = der_encode(&asn_DEF_Keypair,
-            keypair, write_out, fp);
-      fclose(fp);
-      if(ec.encoded == -1) {
-        fprintf(stderr,
-          "Could not encode keypair (at %s)\n",
-          ec.failed_type ? ec.failed_type->name : "unknown");
-        exit(65); /* better, EX_DATAERR */
-      } else {
-        fprintf(stderr, "Created %s with BER encoded keypair\n",
-          filename);
-      }
+    ec = der_encode_to_buffer(&asn_DEF_Keypair,
+            keypair, keypair_out, 121);
+    if(ec.encoded == -1) {
+        fprintf(stderr, "Could not encode keypair\n");
+        goto error;
     }
 
     /* Also print the constructed keypair XER encoded (XML) */
     xer_fprint(stdout, &asn_DEF_Keypair, keypair);
+    free(keypair);
+    return 0;
 
-    return 0; /* Encoding finished successfully */
+error:
+    free(keypair);
+    return -1;
+}
+
+int main(int ac, char **av){
+    uint8_t pubkey[65] = {0};
+    uint8_t privkey[32] = {0};
+    unsigned char asn1_keypair[121] = {0};
+
+    read_from_file(av[1], (unsigned char*)pubkey, 65);
+    read_from_file(av[2], (unsigned char*)privkey, 32);
+
+    asn1_keypair_create(pubkey, privkey, asn1_keypair);
 }
