@@ -1,0 +1,8 @@
+KeypairTest DEFINITIONS ::= BEGIN
+   Keypair ::= SEQUENCE {
+       privkeyversion   INTEGER,
+       privatekey       OCTET STRING,
+       publickeyoid     [0] OBJECT IDENTIFIER,
+       publickey        [1] BIT STRING
+   }
+END
