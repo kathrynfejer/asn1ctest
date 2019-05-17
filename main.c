@@ -91,7 +91,7 @@ int asn1_keypair_create(unsigned char* pubkey, unsigned char* privkey, unsigned 
 
     const unsigned int oid[] = { 1, 2, 840, 10045, 3, 1, 7};
     // set oid
-    int ret = OBJECT_IDENTIFIER_set_arcs(&(keypair->publickeyoid), oid, 7);
+    int ret = OBJECT_IDENTIFIER_set_arcs(&(keypair->publickeyoid), oid, sizeof(oid[0]), sizeof(oid)/sizeof(oid[0]));
     assert(0 == ret);
 
     BIT_STRING_t publickey = {.size = 65, .buf = pubkey};

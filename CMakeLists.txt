@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0 FATAL_ERROR)
 
 execute_process(COMMAND asn1c ${CMAKE_SOURCE_DIR}/xtt_keypair.asn1)
-execute_process(COMMAND rm converter-example.c)
+execute_process(COMMAND rm converter-example.c converter-sample.c)
 file(GLOB generated_sources ${CMAKE_CURRENT_BINARY_DIR}/*.c)
 
 set(PDU "Keypair")
